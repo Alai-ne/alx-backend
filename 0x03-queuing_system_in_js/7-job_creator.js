@@ -1,70 +1,28 @@
-#!/usr/bin/yarn dev
 import { createQueue } from 'kue';
 
-const jobs = [
-  {
-    phoneNumber: '4153518780',
-    message: 'This is the code 1234 to verify your account',
-  },
-  {
-    phoneNumber: '4153518781',
-    message: 'This is the code 4562 to verify your account',
-  },
-  {
-    phoneNumber: '4153518743',
-    message: 'This is the code 4321 to verify your account',
-  },
-  {
-    phoneNumber: '4153538781',
-    message: 'This is the code 4562 to verify your account',
-  },
-  {
-    phoneNumber: '4153118782',
-    message: 'This is the code 4321 to verify your account',
-  },
-  {
-    phoneNumber: '4153718781',
-    message: 'This is the code 4562 to verify your account',
-  },
-  {
-    phoneNumber: '4159518782',
-    message: 'This is the code 4321 to verify your account',
-  },
-  {
-    phoneNumber: '4158718781',
-    message: 'This is the code 4562 to verify your account',
-  },
-  {
-    phoneNumber: '4153818782',
-    message: 'This is the code 4321 to verify your account',
-  },
-  {
-    phoneNumber: '4154318781',
-    message: 'This is the code 4562 to verify your account',
-  },
-  {
-    phoneNumber: '4151218782',
-    message: 'This is the code 4321 to verify your account',
-  },
-];
+const blacklistedNumbers = ['4153518780', '4153518781'];
+const queue = createQueue();
 
-const queue = createQueue({ name: 'push_notification_code_2' });
-
-for (const jobInfo of jobs) {
-  const job = queue.create('push_notification_code_2', jobInfo);
-
-  job
-    .on('enqueue', () => {
-      console.log('Notification job created:', job.id);
-    })
-    .on('complete', () => {
-      console.log('Notification job', job.id, 'completed');
-    })
-    .on('failed', (err) => {
-      console.log('Notification job', job.id, 'failed:', err.message || err.toString());
-    })
-    .on('progress', (progress, _data) => {
-      console.log('Notification job', job.id, `${progress}% complete`);
-    });
-  job.save();
+/**
+ * Handles notification jobs for queue 'push_notification_code_2'
+ * @param {string} phoneNumber - user phone number
+ * @param {string} message - push notification message
+ * @param {import('kue').Job}} job - queue job
+ * @param {import('kue').DoneCallback} done - done call back
+ * @returns {void}
+ */
+function sendNotification(phoneNumber, message, job, done) {
+  job.progress(0, 100);
+  if (blacklistedNumbers.some((number) => number === phoneNumber)) {
+    done(new Error(`Phone number ${phoneNumber} is blacklisted`));
+    return;
+  }
+  job.progress(50, 100);
+  console.log(`Sending notification to ${phoneNumber}, with message: ${message}`);
+  done();
 }
+
+queue.process('push_notification_code_2', 2, (job, done) => {
+  const { phoneNumber, message } = job.data;
+  sendNotification(phoneNumber, message, job, done);
+});
